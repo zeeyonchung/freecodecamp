@@ -44,8 +44,18 @@ app.route('/')
     res.render('main.html');
 });
 
+app.route('/api/whoami')
+.get(function(req, res) {
+  var result = {
+    'ipadress': req.headers['x-forwarded-for'].split(',')[0],
+    'language': req.headers['accept-language'].split(',')[0],
+    'software': req.headers['user-agent']
+  }
+  res.send(result);
+});
 
-app.route('/:key')
+
+app.route('/api/time/:key')
 .get(function(req, res) {
   var key = req.params.key;
   var result = {
