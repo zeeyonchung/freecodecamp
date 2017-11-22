@@ -9,6 +9,11 @@ var fs = require('fs');
 var express = require('express');
 var app = express();
 var path    = require("path");
+var mongodb = require('mongodb');
+
+var MongoClient = mongodb.MongoClient;
+var url = 'mongodb://root:glitch@ds021326.mlab.com:21326/glitch_db'
+
 
 if (!process.env.DISABLE_XORIGIN) {
   app.use(function(req, res, next) {
@@ -43,6 +48,57 @@ app.route('/')
 .get(function(req, res) {
     res.render('main.html');
 });
+
+app.route('/go/:key')
+.get(function(req, res) {
+  MongoClient.connect(url, function (err, db) {
+    var collection = db.collection('urls');
+    collection.find({'short_url': parseInt(req.params.key)}).toArray(function(err, docs) {
+      var original_url = docs[0]['original_url'];
+      res.redirect(original_url);
+    });
+  });
+});
+
+app.route('/api/new/:key(*)')
+.get(function(req, res) {
+  var result = {};
+  
+  if (req.params.key.indexOf('http://') < 0 && req.params.key.indexOf('https://') < 0) {
+    result.err = "you passed an invalid URL that doesn't follow the valid http://www.example.com format";
+    res.send(result);
+    return;
+  }
+  
+  MongoClient.connect(url, function (err, db) {
+    if (err) {
+      result.err = 'Unable to connect to the mongoDB server. ERROR: '.concat(err);
+      res.send(result);
+    } else {
+      
+      console.log('Connection established to ', url);
+      var collection = db.collection('urls');
+      
+      collection.find().sort({short_url: -1}).limit(1).toArray(function(err, docs) {
+        var short_url = docs[0]['short_url'] + 1;
+        
+        result = {
+          'original_url': req.params.key,
+          'short_url': short_url
+        };
+        
+        collection.insert(result, function(err, data) {
+          result['short_url'] = req.protocol + '://' + req.get('host') + "/go/" + short_url;
+          db.close();
+          res.send(result);
+        });
+        
+      });
+    }
+  });
+  
+});
+
 
 app.route('/api/whoami')
 .get(function(req, res) {
