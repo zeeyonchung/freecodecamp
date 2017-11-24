@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+
+   <head>
+      <title>Backend Challenges</title>
+      <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css">
+      <link href="/public/style.css" rel="stylesheet" type="text/css">
+   </head>
+
+   <body>
+      <div class="container">
+        <p>Submit a file to view its filesize.</p>
+        <form action="/getFileSizeJSON" method="post" enctype="multipart/form-data">
+          <input type="file" name="myFile"/>
+          <button type="submit">submit</button>
+        </form>
+      </div>
+   </body>
+
+</html>

@@ -10,9 +10,12 @@ var express = require('express');
 var app = express();
 var path    = require("path");
 var mongodb = require('mongodb');
+var multer = require('multer');
+var upload = multer({dest : 'upload/'});
 
 var MongoClient = mongodb.MongoClient;
 var url = 'mongodb://root:glitch@ds021326.mlab.com:21326/glitch_db'
+
 
 if (!process.env.DISABLE_XORIGIN) {
   app.use(function(req, res, next) {
@@ -47,6 +50,18 @@ app.route('/')
 .get(function(req, res) {
     res.render('main.html');
 });
+
+
+var cpupload = upload.fields([{name: "myFile", maxCount: 1}]);
+app.post('/getFileSizeJSON', cpupload, function(req, res, next) {
+  res.send({'size': req.files['myFile'][0]['size']});
+});
+
+app.route('/getFileSize')
+.get(function(req, res) {
+  res.render('getFileSize');
+});
+
 
 app.route('/go/:key')
 .get(function(req, res) {
