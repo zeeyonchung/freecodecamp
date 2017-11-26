@@ -8,10 +8,11 @@
 var fs = require('fs');
 var express = require('express');
 var app = express();
-var path    = require("path");
+var path    = require('path');
 var mongodb = require('mongodb');
 var multer = require('multer');
 var upload = multer({dest : 'upload/'});
+var https = require('https');
 
 var MongoClient = mongodb.MongoClient;
 var url = 'mongodb://root:glitch@ds021326.mlab.com:21326/glitch_db'
@@ -49,6 +50,72 @@ app.route('/_api/package.json')
 app.route('/')
 .get(function(req, res) {
     res.render('main.html');
+});
+
+
+app.route('/api/latest/imageSearch')
+.get(function(req, res) {
+  MongoClient.connect(url, function (err, db) {
+    var collection = db.collection('queries');
+    
+    collection.find().sort({"when": -1}).limit(10).toArray(function(err, docs) {
+      res.send(docs);
+    });
+  });
+});
+
+app.route('/api/imageSearch/:key')
+.get(function(req, res) {
+  let host = 'api.cognitive.microsoft.com';
+  let path = '/bing/v7.0/images/search';
+
+  let term = req.params.key;
+
+  let response_handler = function (response) {
+      let body = '';
+      response.on('data', function (d) {
+          body += d;
+      });
+      response.on('end', function () {
+          body = JSON.stringify(JSON.parse(body), ['value', 'name', 'thumbnailUrl', 'contentUrl', 'hostPageUrl'], '  ');
+          res.setHeader('Content-Type', 'application/json');
+          res.send(body);
+      });
+      response.on('error', function (e) {
+          console.log('Error: ' + e.message);
+      });
+  };
+
+  let bing_image_search = function (term) {
+    console.log('Searching images for: ' + term);
+    let request_params = {
+        method : 'GET',
+        hostname : host,
+        path : path + '?q=' + encodeURIComponent(term),
+        headers : {
+            'Ocp-Apim-Subscription-Key' : process.env.IMAGE_SEARCH_API_KEY,
+        }
+    };
+
+    let req = https.request(request_params, response_handler);
+    save_query(term);
+    req.end();
+  }
+  
+  let save_query = function (term) {
+    MongoClient.connect(url, function (err, db) {
+      var collection = db.collection('queries');
+      
+      var query = {"term": term, "when": new Date().toLocaleString()};
+      
+      collection.insert(query, function(err, data) {
+        db.close();
+      });
+    });
+    
+  }
+  
+  bing_image_search(term);
 });
 
 
@@ -165,9 +232,8 @@ app.use(function(err, req, res, next) {
       .type('txt')
       .send(err.message || 'SERVER ERROR');
   }  
-})
+});
 
 app.listen(process.env.PORT, function () {
   console.log('Node.js listening ...');
 });
-
