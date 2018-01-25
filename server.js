@@ -58,7 +58,7 @@ app.route('/api/latest/imageSearch')
   MongoClient.connect(url, function (err, db) {
     var collection = db.collection('queries');
     
-    collection.find().sort({"when": -1}).limit(10).toArray(function(err, docs) {
+    collection.find().sort({when: -1}).limit(10).toArray(function(err, docs) {
       res.send(docs);
     });
   });
@@ -70,6 +70,7 @@ app.route('/api/imageSearch/:key')
   let path = '/bing/v7.0/images/search';
 
   let term = req.params.key;
+  let offset = req.query.offset;
 
   let response_handler = function (response) {
       let body = '';
@@ -77,6 +78,7 @@ app.route('/api/imageSearch/:key')
           body += d;
       });
       response.on('end', function () {
+          //console.log(JSON.parse(body));
           body = JSON.stringify(JSON.parse(body), ['value', 'name', 'thumbnailUrl', 'contentUrl', 'hostPageUrl'], '  ');
           res.setHeader('Content-Type', 'application/json');
           res.send(body);
@@ -86,17 +88,16 @@ app.route('/api/imageSearch/:key')
       });
   };
 
-  let bing_image_search = function (term) {
+  let bing_image_search = function (term, offset) {
     console.log('Searching images for: ' + term);
     let request_params = {
         method : 'GET',
         hostname : host,
-        path : path + '?q=' + encodeURIComponent(term),
+        path : path + '?q=' + encodeURIComponent(term) + '&count=5&offset=' + (offset? offset : 0),
         headers : {
             'Ocp-Apim-Subscription-Key' : process.env.IMAGE_SEARCH_API_KEY,
         }
     };
-
     let req = https.request(request_params, response_handler);
     save_query(term);
     req.end();
@@ -106,7 +107,7 @@ app.route('/api/imageSearch/:key')
     MongoClient.connect(url, function (err, db) {
       var collection = db.collection('queries');
       
-      var query = {"term": term, "when": new Date().toLocaleString()};
+      var query = {"term": term, "when": new Date()};
       
       collection.insert(query, function(err, data) {
         db.close();
@@ -115,7 +116,7 @@ app.route('/api/imageSearch/:key')
     
   }
   
-  bing_image_search(term);
+  bing_image_search(term, offset);
 });
 
 
